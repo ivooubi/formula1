@@ -1,0 +1,235 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Start</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none; /* Evita selección de texto */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #111;
+            font-family: 'Montserrat', sans-serif;
+            color: #fff;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        .semaforo {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 50px;
+            background: #222;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .luz-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .luz {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #333;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            transition: background-color 0.1s;
+        }
+
+        .luz.rojo {
+            background-color: #ff0000;
+            box-shadow: 0 0 40px #ff0000, inset 0 0 10px #aa0000;
+        }
+
+        .luz.verde {
+            background-color: #00ff00;
+            box-shadow: 0 0 50px #00ff00, inset 0 0 10px #00aa00;
+        }
+
+        .info-container {
+            text-align: center;
+            height: 100px;
+        }
+
+        #mensaje {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #tiempo {
+            font-size: 4rem;
+            font-weight: 900;
+            margin: 10px 0 0 0;
+            color: #00ff00;
+            display: none;
+        }
+        
+        .penalizacion {
+            color: #ff0000 !important;
+            display: block !important;
+        }
+
+        @media (max-width: 600px) {
+            .luz { width: 45px; height: 45px; }
+            .semaforo { gap: 10px; padding: 15px; }
+            #mensaje { font-size: 1.2rem; }
+            #tiempo { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="semaforo">
+        <div class="luz-container"><div class="luz" id="luz-1"></div></div>
+        <div class="luz-container"><div class="luz" id="luz-2"></div></div>
+        <div class="luz-container"><div class="luz" id="luz-3"></div></div>
+        <div class="luz-container"><div class="luz" id="luz-4"></div></div>
+        <div class="luz-container"><div class="luz" id="luz-5"></div></div>
+    </div>
+
+    <div class="info-container">
+        <p id="mensaje">Haz clic o pulsa ESPACIO para empezar</p>
+        <p id="tiempo">0.000s</p>
+    </div>
+
+    <script>
+        const luces = [
+            document.getElementById('luz-1'),
+            document.getElementById('luz-2'),
+            document.getElementById('luz-3'),
+            document.getElementById('luz-4'),
+            document.getElementById('luz-5')
+        ];
+        const mensajeEl = document.getElementById('mensaje');
+        const tiempoEl = document.getElementById('tiempo');
+
+        let estado = 'esperando';
+        let temporizadores = [];
+        let tiempoInicio = 0;
+
+        // --- EVENTOS DE INTERACCIÓN ---
+        
+        // Ratón
+        document.body.addEventListener('mousedown', manejarInteraccion);
+        
+        // Táctil (Móviles)
+        document.body.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            manejarInteraccion();
+        }, { passive: false });
+        
+        // Teclado (Barra Espaciadora)
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Evita que la página baje al pulsar espacio
+                if (e.repeat) return; // Evita que el evento se dispare sin parar si mantienes la tecla pulsada
+                manejarInteraccion();
+            }
+        });
+
+        // --- LÓGICA PRINCIPAL ---
+
+        function manejarInteraccion() {
+            if (estado === 'esperando' || estado === 'terminado') {
+                iniciarSecuencia();
+            } else if (estado === 'secuencia') {
+                salidaNula();
+            } else if (estado === 'listo') {
+                registrarTiempo();
+            }
+        }
+
+        function limpiarLuces() {
+            luces.forEach(luz => {
+                luz.classList.remove('rojo', 'verde');
+            });
+        }
+
+        function limpiarTemporizadores() {
+            temporizadores.forEach(clearTimeout);
+            temporizadores = [];
+        }
+
+        function iniciarSecuencia() {
+            estado = 'secuencia';
+            limpiarLuces();
+            limpiarTemporizadores();
+            
+            mensajeEl.innerText = "Espera a la luz verde...";
+            tiempoEl.style.display = 'none';
+            tiempoEl.classList.remove('penalizacion');
+
+            // Encender luces rojas (1s, 2s, 3s, 4s, 5s)
+            for (let i = 0; i < 5; i++) {
+                let timer = setTimeout(() => {
+                    luces[i].classList.add('rojo');
+                }, (i + 1) * 1000);
+                temporizadores.push(timer);
+            }
+
+            // Tiempo exacto de F1: Entre 0.2 y 3 segundos DESPUÉS de la 5ª luz (que se enciende al segundo 5)
+            // 5000ms + (aleatorio entre 200ms y 3000ms)
+            let tiempoAleatorio = 5000 + (Math.random() * 2800 + 200);
+            
+            let goTimer = setTimeout(() => {
+                darPistoletazo();
+            }, tiempoAleatorio);
+            
+            temporizadores.push(goTimer);
+        }
+
+        function darPistoletazo() {
+            estado = 'listo';
+            tiempoInicio = performance.now();
+            
+            // Pasar todas las luces a verde
+            luces.forEach(luz => {
+                luz.classList.remove('rojo');
+                luz.classList.add('verde');
+            });
+
+            mensajeEl.innerText = "¡YA!";
+        }
+
+        function registrarTiempo() {
+            let tiempoReaccion = performance.now() - tiempoInicio;
+            estado = 'terminado';
+            
+            mensajeEl.innerText = "Haz clic o pulsa ESPACIO para intentarlo de nuevo";
+            tiempoEl.innerText = (tiempoReaccion / 1000).toFixed(3) + "s";
+            tiempoEl.style.display = 'block';
+        }
+
+        function salidaNula() {
+            estado = 'terminado';
+            limpiarTemporizadores();
+            limpiarLuces();
+            
+            mensajeEl.innerText = "Haz clic o pulsa ESPACIO para intentarlo de nuevo";
+            tiempoEl.innerText = "¡TE HAS ADELANTADO!";
+            tiempoEl.classList.add('penalizacion');
+            tiempoEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
